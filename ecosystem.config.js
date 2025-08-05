@@ -1,12 +1,21 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 이 설정 파일의 절대 경로를 기준으로 __dirname을 생성합니다.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default {
   apps: [
     {
       name: 'instagram-scheduler',
-      script: './src/scheduler/cron-scheduler.js',
+      // path.join을 사용하여 스크립트의 절대 경로를 동적으로 생성합니다.
+      script: path.join(__dirname, 'src/scheduler/cron-scheduler.js'),
+      cwd: __dirname, // cwd도 동적으로 설정하여 일관성을 유지합니다.
       instances: 1,
       exec_mode: 'fork',
-      cron_restart: '0 12,17 * * *', // 매일 12시와 17시에 재시작하여 스케줄 실행
-      autorestart: false, // cron으로만 재시작
+      cron_restart: '0 12,17 * * *',
+      autorestart: false,
       watch: false,
       max_memory_restart: '200M',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
@@ -16,7 +25,8 @@ export default {
     },
     {
       name: 'instagram-web',
-      script: './src/web/server.js',
+      script: path.join(__dirname, 'src/web/server.js'),
+      cwd: __dirname,
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
@@ -25,7 +35,7 @@ export default {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       env: {
         NODE_ENV: 'production',
-        WEB_PORT: 3000, // 서버에서 사용할 포트
+        WEB_PORT: 3000,
       },
     },
   ],
