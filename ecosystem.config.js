@@ -1,45 +1,32 @@
-module.exports = {
+export default {
   apps: [
     {
-      name: 'instagram-auto-post',
-      script: 'src/index.js',
-      args: 'schedule',
+      name: 'instagram-scheduler',
+      script: 'src/scheduler/cron-scheduler.js',
       instances: 1,
+      exec_mode: 'fork',
+      cron_restart: '0 12,17 * * *', // 매일 12시와 17시에 재시작하여 스케줄 실행
+      autorestart: false, // cron으로만 재시작
+      watch: false,
+      max_memory_restart: '200M',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
+    {
+      name: 'instagram-web',
+      script: 'src/web/server.js',
+      instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '200M',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
       env: {
-        NODE_ENV: 'development'
+        NODE_ENV: 'production',
+        WEB_PORT: 3000, // 서버에서 사용할 포트
       },
-      env_production: {
-        NODE_ENV: 'production'
-      },
-      error_file: './logs/pm2-err.log',
-      out_file: './logs/pm2-out.log',
-      log_file: './logs/pm2-combined.log',
-      time: true,
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-      merge_logs: true,
-      cron_restart: '0 9 * * *', // 매일 오전 9시에 재시작하여 게시글 업로드
-      min_uptime: '10s',
-      max_restarts: 5,
-      exec_mode: 'fork',
-      kill_timeout: 5000,
-      listen_timeout: 3000,
-      restart_delay: 1000
-    }
+    },
   ],
-
-  deploy: {
-    production: {
-      user: 'node',
-      host: 'your-server.com',
-      ref: 'origin/main',
-      repo: 'git@github.com:your-username/instagram-auto-post.git',
-      path: '/var/www/production',
-      'pre-deploy-local': '',
-      'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production',
-      'pre-setup': ''
-    }
-  }
 };
