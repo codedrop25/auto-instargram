@@ -2,7 +2,7 @@ export default {
   apps: [
     {
       name: 'instagram-scheduler',
-      script: 'src/scheduler/cron-scheduler.js',
+      script: './src/scheduler/cron-scheduler.js',
       instances: 1,
       exec_mode: 'fork',
       cron_restart: '0 12,17 * * *', // 매일 12시와 17시에 재시작하여 스케줄 실행
@@ -16,7 +16,7 @@ export default {
     },
     {
       name: 'instagram-web',
-      script: 'src/web/server.js',
+      script: './src/web/server.js',
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
