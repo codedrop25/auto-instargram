@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Auto-Post Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      padding: 20px;
+      background-color: #343a40;
+      color: white;
+    }
+    .main-content {
+      margin-left: 280px;
+      padding: 20px;
+    }
+    .card-img-top {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+    .photo-card {
+      transition: transform 0.2s;
+    }
+    .photo-card:hover {
+      transform: translateY(-5px);
+    }
+    .status-badge {
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">삭제 확인</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          정말로 이 사진을 삭제하시겠습니까? 삭제된 파일은 복구할 수 없습니다.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+          <button type="button" class="btn btn-danger" id="confirm-delete-btn">삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2 class="mb-4"><i class="bi bi-instagram"></i> Auto-Post</h2>
+    <hr class="text-secondary">
+    <div class="card bg-dark border-light">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-cloud-arrow-up-fill"></i> 사진 업로드</h5>
+            <p class="card-text small">게시할 사진과 내용을 업로드하세요.</p>
+            <form id="upload-form">
+                <div class="mb-3">
+                    <label for="photo-input" class="form-label">사진 파일</label>
+                    <input type="file" class="form-control" name="photo" id="photo-input" accept="image/jpeg, image/png" required>
+                </div>
+                <div class="mb-3">
+                    <label for="comment-input" class="form-label">게시글 내용</label>
+                    <textarea class="form-control" name="comment" id="comment-input" rows="4" placeholder="인스타그램에 게시될 내용" required></textarea>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <span id="upload-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                        업로드
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="mt-4 small text-muted">
+        <p><strong><i class="bi bi-calendar-check"></i> 스케줄 안내</strong></p>
+        <p>화요일: 12:00 ~ 18:00</p>
+        <p>금요일: 17:00 ~ 18:00</p>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1><i class="bi bi-images"></i> 사진 보관함</h1>
+        <div>
+            <button id="filter-not-used" class="btn btn-outline-secondary" onclick="filterPhotos('not_used')">게시 예정</button>
+            <button id="filter-used" class="btn btn-outline-secondary" onclick="filterPhotos('used')">게시 완료</button>
+        </div>
+    </div>
+    
+    <div id="photo-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <!-- 사진 카드들이 여기에 동적으로 추가됩니다 -->
+    </div>
+    <div id="loading-indicator" class="text-center mt-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const uploadForm = document.getElementById('upload-form');
+    const photoGrid = document.getElementById('photo-grid');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const uploadSpinner = document.getElementById('upload-spinner');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    let photoToDeleteId = null;
+    let currentFilterStatus = 'not_used'; // 현재 필터 상태를 추적
+
+    const createPhotoCard = (photo) => {
+      const statusInfo = photo.status === 'not_used'
+        ? '<span class="badge bg-primary status-badge">게시 예정</span>'
+        : '<span class="badge bg-success status-badge">게시 완료</span>';
+
+      return (
+        `<div class="col">
+          <div class="card h-100 photo-card">
+            <img src="/uploads/${photo.filename}" class="card-img-top" alt="${photo.filename}">
+            <div class="card-body">
+              <p class="card-text">${photo.comment.replace(/\n/g, '<br>')}</p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+              ${statusInfo}
+              <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete(${photo.id})">
+                <i class="bi bi-trash"></i> 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      `);
+    };
+
+    const fetchPhotos = async (status) => {
+      loadingIndicator.style.display = 'block';
+      photoGrid.innerHTML = '';
+      try {
+        const response = await fetch(`/api/photos?status=${status}`);
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.statusText}`);
+        }
+        const photos = await response.json();
+        if (photos.length === 0) {
+            photoGrid.innerHTML = '<p class="text-center text-muted">표시할 사진이 없습니다.</p>';
+        } else {
+            photoGrid.innerHTML = photos.map(createPhotoCard).join('');
+        }
+      } catch (error) {
+        console.error('Error fetching photos:', error);
+        photoGrid.innerHTML = '<p class="text-center text-danger">사진을 불러오는 중 오류가 발생했습니다. 서버 로그를 확인해주세요.</p>';
+      } finally {
+        loadingIndicator.style.display = 'none';
+      }
+    };
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      uploadSpinner.style.display = 'inline-block';
+      const formData = new FormData(uploadForm);
+      try {
+        const response = await fetch('/api/photos/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (response.ok) {
+            uploadForm.reset();
+            filterPhotos('not_used');
+        } else {
+            alert('업로드에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Error uploading photo:', error);
+        alert('업로드 중 오류가 발생했습니다.');
+      } finally {
+        uploadSpinner.style.display = 'none';
+      }
+    });
+
+    window.confirmDelete = (id) => {
+      photoToDeleteId = id;
+      deleteModal.show();
+    };
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+      if (photoToDeleteId) {
+        try {
+          await fetch(`/api/photos/${photoToDeleteId}`, { method: 'DELETE' });
+          fetchPhotos(currentFilterStatus);
+        } catch (error) {
+          console.error('Error deleting photo:', error);
+          alert('삭제 중 오류가 발생했습니다.');
+        } finally {
+          deleteModal.hide();
+          photoToDeleteId = null;
+        }
+      }
+    });
+    
+    window.filterPhotos = (status) => {
+        currentFilterStatus = status; // 현재 필터 상태를 변수에 저장
+        
+        // 모든 필터 버튼에서 'active' 클래스 제거
+        document.querySelectorAll('.main-content .btn-outline-secondary').forEach(btn => btn.classList.remove('active'));
+        
+        // status 값에 따라 올바른 버튼에 'active' 클래스 추가
+        if (status === 'used') {
+            document.getElementById('filter-used').classList.add('active');
+        } else {
+            document.getElementById('filter-not-used').classList.add('active');
+        }
+        
+        // 해당 상태의 사진 목록을 불러옴
+        fetchPhotos(status);
+    }
+
+    // 페이지 로드 시 '게시 예정' 목록을 기본으로 보여줌
+    filterPhotos('not_used');
+  </script>
+</body>
+</html>

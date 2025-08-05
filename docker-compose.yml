@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  instagram-auto-post:
+    build: .
+    container_name: instagram-auto-post
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./images:/app/images
+    networks:
+      - instagram-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  instagram-network:
+    driver: bridge
+
+# 개발용 서비스 (선택사항)
+# services:
+#   instagram-auto-post-dev:
+#     build: .
+#     container_name: instagram-auto-post-dev
+#     environment:
+#       - NODE_ENV=development
+#     env_file:
+#       - .env
+#     volumes:
+#       - .:/app
+#       - /app/node_modules
+#     command: npm run dev
+#     networks:
+#       - instagram-network
